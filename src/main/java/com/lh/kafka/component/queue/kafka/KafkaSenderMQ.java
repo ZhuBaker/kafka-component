@@ -74,6 +74,11 @@ public class KafkaSenderMQ<K, V> implements IKafkaSenderMQ<K, V> {
     }
 
     @Override
+    public synchronized void shutdown() {
+        this.running.set(false);
+    }
+
+    @Override
     public void commitTransaction() {
         getSender().commitTransaction();
     }

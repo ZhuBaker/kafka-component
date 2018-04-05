@@ -23,17 +23,20 @@ public class KafkaMessageAdapter<K, V> {
     private MQConsumer<K, V> mqConsumer;
 
     private KafkaTopic kafkaTopic;
-    
-    public KafkaMessageAdapter(MQConsumer<K, V> mqConsumer) {
+
+    private KafkaMessageAdapter() {
         super();
-        this.mqConsumer = mqConsumer;
     }
 
     public KafkaMessageAdapter(MQConsumer<K, V> mqConsumer,
             KafkaTopic kafkaTopic) {
-        super();
+        this();
         this.mqConsumer = mqConsumer;
         this.kafkaTopic = kafkaTopic;
+
+        if(kafkaTopic == null){
+            throw new IllegalArgumentException("Property param [kafkaTopic] must be not null.");
+        }
     }
 
     public KafkaMessageDecoder<K, V> getDecoder() {

@@ -26,7 +26,7 @@ import com.lh.kafka.component.queue.kafka.thread.MsReceiverThread;
 /**
  * @author 林浩<hao.lin@w-oasis.com>
  * @version 创建时间：2018年3月29日 上午11:03:23
- * 说明：此方式未默认自动消费方式
+ * 说明：此方式为默认自动消费方式
  */
 public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaReceiverMQ<K, V> {
     
@@ -38,34 +38,14 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
     private Commit commit = Commit.AUTO_COMMIT;
     
     /**
-     * 接收模式：默认使用模式1（数据接收与业务处理在同一线程中（并发取决于队列分区））
-     */
-    private Model model = Model.MODEL_1;
-    
-    /**
      * 是否批量消费：默认单个消费
      */
     private Batch batch = Batch.NO;
     
     /**
-     * 消息接收线程睡眠时间:防止cpu使用率过高
-     */
-    private long msReceiverThreadSleepTime = 0;
-    
-    /**
-     * 消息拉取超时时间：kafka poll timeout time(ms)
-     */
-    private long msPollTimeout = Long.MAX_VALUE;
-    
-    /**
-     * 消息适配器
-     */
-    protected KafkaMessageAdapter<K, V> messageAdapter;
-    
-    /**
      * 接收本地线程
      */
-    protected BlockingQueue<ConsumerRecords<K, V>> blockingQueue;
+    private BlockingQueue<ConsumerRecords<K, V>> blockingQueue;
     
     /**   
      * 消息接收器列表(size: 指定topic的partition大小)
@@ -109,36 +89,12 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
             props.setProperty(KafkaConstants.ENABLE_AUTO_COMMIT, "false");
     }
 
-    public Model getModel() {
-        return model;
-    }
-
-    public void setModel(Model model) {
-        this.model = model;
-    }
-
     public Batch getBatch() {
         return batch;
     }
 
     public void setBatch(Batch batch) {
         this.batch = batch;
-    }
-    
-    public long getMsReceiverThreadSleepTime() {
-        return msReceiverThreadSleepTime;
-    }
-
-    public void setMsReceiverThreadSleepTime(long msReceiverThreadSleepTime) {
-        this.msReceiverThreadSleepTime = msReceiverThreadSleepTime;
-    }
-
-    public long getMsPollTimeout() {
-        return msPollTimeout;
-    }
-
-    public void setMsPollTimeout(long msPollTimeout) {
-        this.msPollTimeout = msPollTimeout;
     }
 
     public BlockingQueue<ConsumerRecords<K, V>> getBlockingQueue() {
@@ -152,7 +108,7 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
     @Override
     public void start() {
         if(isRunning()){
-            logger.info("kafka receiver mq start fail. beacuse it has running...");
+            logger.info("kafka receiver mq start fail. because it has running...");
             return;
         }
         
@@ -171,7 +127,7 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
             receiverExecutorService = Executors.newFixedThreadPool(this.getPoolSize(), new KafkaThreadFactory(topic));
             break;
         case MODEL_2:
-            //
+            //初始化队列大小
             blockingQueue = new LinkedBlockingDeque<ConsumerRecords<K,V>>(this.asyncQueueSize);
             receiverExecutorService = Executors.newFixedThreadPool(this.getPoolSize(), new KafkaThreadFactory(topic));
             
@@ -226,7 +182,7 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
         //阻塞等待队列释放
         if (blockingQueue != null){
             while (!blockingQueue.isEmpty()){
-                logger.info("Waitting local queue empty.");
+                logger.info("Waitting local queue empty.Current size : " + blockingQueue.size());
             }
         }
         

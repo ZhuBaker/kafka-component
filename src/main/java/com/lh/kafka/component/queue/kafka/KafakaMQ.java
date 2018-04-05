@@ -5,6 +5,7 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.lh.kafka.component.queue.kafka.support.Model;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -49,6 +50,16 @@ public abstract class KafakaMQ<K, V> implements IKafakaMQ {
      * 线程池的大小：（默认启动一个消费者，如过需要启动多个请设置消费者个数 ）
      */
     protected int poolSize = 1;
+
+    /**
+     * 消息拉取超时时间：kafka poll timeout time(ms)
+     */
+    protected long msPollTimeout = Long.MAX_VALUE;
+
+    /**
+     * 消息接收线程睡眠时间:防止cpu使用率过高
+     */
+    protected long msReceiverThreadSleepTime = 0;
     
     /**
      * 消息异步处理线程个数系数(Model是Model_2时生效 )
@@ -57,6 +68,11 @@ public abstract class KafakaMQ<K, V> implements IKafakaMQ {
      * </p>
      */
     protected int asyncHandleCoefficient = 2;
+
+    /**
+     * 接收模式：默认使用模式1（数据接收与业务处理在同一线程中（并发取决于队列分区））
+     */
+    protected Model model = Model.MODEL_1;
     
     /**
      * 资源
@@ -83,21 +99,26 @@ public abstract class KafakaMQ<K, V> implements IKafakaMQ {
         setMessageAdapter(messageAdapter);
     }
 
-//    /**
-//     * 构造方法
-//     * @param config
-//     * @param messageAdapter
-//     * @param commit
-//     */
-//    public KafakaMQ(Resource config, KafkaMessageAdapter<K, V> messageAdapter, Commit commit) {
-//        setConfig(config);
-//        setMessageAdapter(messageAdapter);
-//        setCommit(commit);
-//    }
+    /**
+     * 构造方法
+     * @param config
+     * @param messageAdapter
+     * @param msPollTimeout
+     */
+    public KafakaMQ(Resource config, KafkaMessageAdapter<K, V> messageAdapter, long msPollTimeout) {
+        setConfig(config);
+        setMessageAdapter(messageAdapter);
+        setMsPollTimeout(msPollTimeout);
+    }
 
     @Override
     public synchronized boolean isRunning() {
         return running.get();
+    }
+
+    @Override
+    public synchronized void shutdown() {
+        this.running.set(false);
     }
 
     public IKafkaMsReceiverClient<K, V> getNewReceiver() {
@@ -141,6 +162,22 @@ public abstract class KafakaMQ<K, V> implements IKafakaMQ {
     public void setPoolSize(int poolSize) {
         this.poolSize = poolSize;
     }
+
+    public long getMsPollTimeout() {
+        return msPollTimeout;
+    }
+
+    public void setMsPollTimeout(long msPollTimeout) {
+        this.msPollTimeout = msPollTimeout;
+    }
+
+    public long getMsReceiverThreadSleepTime() {
+        return msReceiverThreadSleepTime;
+    }
+
+    public void setMsReceiverThreadSleepTime(long msReceiverThreadSleepTime) {
+        this.msReceiverThreadSleepTime = msReceiverThreadSleepTime;
+    }
     
     public int getAsyncHandleCoefficient() {
         return asyncHandleCoefficient;
@@ -148,6 +185,14 @@ public abstract class KafakaMQ<K, V> implements IKafakaMQ {
 
     public void setAsyncHandleCoefficient(int asyncHandleCoefficient) {
         this.asyncHandleCoefficient = asyncHandleCoefficient;
+    }
+
+    public Model getModel() {
+        return model;
+    }
+
+    public void setModel(Model model) {
+        this.model = model;
     }
     
     public Resource getResource() {

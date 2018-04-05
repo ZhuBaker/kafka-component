@@ -41,6 +41,11 @@ public class MsHandlerThread<K, V> implements Runnable {
     private BlockingQueue<ConsumerRecords<K, V>> blockingQueue;
 
     /**
+     * 消息处理线程睡眠时间:防止cpu使用率过高
+     */
+    private long msHandlerThreadSleepTime = 0;
+
+    /**
      * 构造方法
      * @param messageAdapter    消息适配器
      * @param blockingQueue 
@@ -51,9 +56,24 @@ public class MsHandlerThread<K, V> implements Runnable {
         this.messageAdapter = messageAdapter;
         this.blockingQueue = blockingQueue;
     }
+
+    /**
+     * 构造方法
+     * @param messageAdapter    消息适配器
+     * @param blockingQueue
+     * @param msHandlerThreadSleepTime
+     */
+    public MsHandlerThread(KafkaMessageAdapter<K, V> messageAdapter,
+                           BlockingQueue<ConsumerRecords<K, V>> blockingQueue,
+                           long msHandlerThreadSleepTime) {
+        super();
+        this.messageAdapter = messageAdapter;
+        this.blockingQueue = blockingQueue;
+        this.msHandlerThreadSleepTime = msHandlerThreadSleepTime;
+    }
     
     /**
-     * 
+     * 构造方法
      * @param batch
      * @param messageAdapter
      * @param blockingQueue
@@ -69,10 +89,30 @@ public class MsHandlerThread<K, V> implements Runnable {
         this.blockingQueue = blockingQueue;
     }
 
+    /**
+     * 构造方法
+     * @param batch
+     * @param messageAdapter
+     * @param blockingQueue
+     * @param msHandlerThreadSleepTime
+     */
+    public MsHandlerThread(Batch batch,
+                           KafkaMessageAdapter<K, V> messageAdapter,
+                           BlockingQueue<ConsumerRecords<K, V>> blockingQueue,
+                           long msHandlerThreadSleepTime) {
+        super();
+        if(batch != null){
+            this.batch = batch;
+        }
+        this.messageAdapter = messageAdapter;
+        this.blockingQueue = blockingQueue;
+        this.msHandlerThreadSleepTime = msHandlerThreadSleepTime;
+    }
+
     @Override
     public void run() {
-        logger.info("Message receiver thread [" + Thread.currentThread().getName() + "] start success.");
-        if (!closed.get()) {
+        logger.info("Message handler thread [" + Thread.currentThread().getName() + "] start success.");
+        while (!closed.get()) {
             ConsumerRecords<K, V> records = null;
             try {
                 records = blockingQueue.take();
@@ -105,7 +145,16 @@ public class MsHandlerThread<K, V> implements Runnable {
                     break;
                 }
             }
+
+            if(this.msHandlerThreadSleepTime > 0){
+                try {
+                    Thread.currentThread().sleep(this.msHandlerThreadSleepTime);
+                } catch (InterruptedException e) {
+                }
+            }
         }
+
+        logger.info("Message handler thread ["+ Thread.currentThread().getName() + "] end success.");
     }
 
     /**

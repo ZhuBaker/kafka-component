@@ -163,10 +163,13 @@ public class MsReceiverThread<K, V> implements Runnable {
                 }
                 
                 if(this.msReceiverThreadSleepTime > 0){
-                    Thread.currentThread().sleep(this.msReceiverThreadSleepTime);
+                    try {
+                        Thread.currentThread().sleep(this.msReceiverThreadSleepTime);
+                    } catch (InterruptedException e) {
+                    }
                 }
             }
-        } catch (InterruptedException e) {
+        } catch (WakeupException e) {
             if(!closed.get()){
                 throw new WakeupException();
             }

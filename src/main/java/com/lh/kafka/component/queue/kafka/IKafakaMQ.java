@@ -15,4 +15,9 @@ public interface IKafakaMQ extends MQueue {
      * @return
      */
     public boolean isRunning();
+
+    /**
+     * 关闭
+     */
+    public void shutdown();
 }
