@@ -10,6 +10,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import com.lh.kafka.component.queue.kafka.support.Commit;
 import com.lh.kafka.component.queue.kafka.support.KafkaTopic;
+
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.springframework.core.io.Resource;
@@ -179,6 +180,7 @@ public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafk
      * @param topic
      * @return
      */
+    @SuppressWarnings("static-access")
     protected int receiveHandle(int num, IKafkaMsReceiverClient<K, V> receiver, String topic) {
         KafkaTopic kafkaTopic = new KafkaTopic(topic);
         logger.info("Message receiver start. subscribe topic:" + kafkaTopic.getTopic());

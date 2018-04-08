@@ -4,9 +4,11 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.lh.kafka.component.queue.exception.MQException;
+
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import com.lh.kafka.component.queue.kafka.adapter.KafkaMessageAdapter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +66,7 @@ public class MsHandlerNoAutoThread<K, V> implements Runnable {
         this.msHandlerThreadSleepTime = msHandlerThreadSleepTime;
     }
 
+    @SuppressWarnings("static-access")
     @Override
     public void run() {
         logger.info("Message handler thread [" + Thread.currentThread().getName() + "] start success.");

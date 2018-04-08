@@ -109,6 +109,7 @@ public class MsHandlerThread<K, V> implements Runnable {
         this.msHandlerThreadSleepTime = msHandlerThreadSleepTime;
     }
 
+    @SuppressWarnings("static-access")
     @Override
     public void run() {
         logger.info("Message handler thread [" + Thread.currentThread().getName() + "] start success.");

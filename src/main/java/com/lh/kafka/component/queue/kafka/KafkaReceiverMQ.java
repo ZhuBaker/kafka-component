@@ -18,7 +18,6 @@ import com.lh.kafka.component.queue.kafka.cons.KafkaConstants;
 import com.lh.kafka.component.queue.kafka.support.Batch;
 import com.lh.kafka.component.queue.kafka.support.Commit;
 import com.lh.kafka.component.queue.kafka.support.KafkaTopic;
-import com.lh.kafka.component.queue.kafka.support.Model;
 import com.lh.kafka.component.queue.kafka.thread.KafkaThreadFactory;
 import com.lh.kafka.component.queue.kafka.thread.MsHandlerThread;
 import com.lh.kafka.component.queue.kafka.thread.MsReceiverThread;
