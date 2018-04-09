@@ -1,11 +1,13 @@
 package com.lh.kafka.component.queue.kafka;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.lh.kafka.component.queue.kafka.support.Model;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -39,7 +41,7 @@ public abstract class KafakaMQ<K, V> implements IKafakaMQ {
     /**
      * 消息适配器
      */
-    protected KafkaMessageAdapter<K, V> messageAdapter;
+    protected KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter;
     
     /**   
      * 异步处理消息队列长度(Model是Model_2时生效 )
@@ -94,7 +96,7 @@ public abstract class KafakaMQ<K, V> implements IKafakaMQ {
      * @param config
      * @param messageAdapter
      */
-    public KafakaMQ(Resource config, KafkaMessageAdapter<K, V> messageAdapter) {
+    public KafakaMQ(Resource config, KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter) {
         setConfig(config);
         setMessageAdapter(messageAdapter);
     }
@@ -105,7 +107,8 @@ public abstract class KafakaMQ<K, V> implements IKafakaMQ {
      * @param messageAdapter
      * @param msPollTimeout
      */
-    public KafakaMQ(Resource config, KafkaMessageAdapter<K, V> messageAdapter, long msPollTimeout) {
+    public KafakaMQ(Resource config, KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter
+            , long msPollTimeout) {
         setConfig(config);
         setMessageAdapter(messageAdapter);
         setMsPollTimeout(msPollTimeout);
@@ -139,11 +142,11 @@ public abstract class KafakaMQ<K, V> implements IKafakaMQ {
         this.props = props;
     }
     
-    public KafkaMessageAdapter<K, V> getMessageAdapter() {
+    public KafkaMessageAdapter<?, ?> getMessageAdapter() {
         return messageAdapter;
     }
 
-    public void setMessageAdapter(KafkaMessageAdapter<K, V> messageAdapter) {
+    public void setMessageAdapter(KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter) {
         this.messageAdapter = messageAdapter;
     }
 

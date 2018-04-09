@@ -1,5 +1,6 @@
 package com.lh.kafka.component.queue.kafka;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -49,7 +50,7 @@ public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafk
      * @param config
      * @param messageAdapter
      */
-    public KafkaNoAutoReceiverMQ(Resource config, KafkaMessageAdapter<K, V> messageAdapter) {
+    public KafkaNoAutoReceiverMQ(Resource config, KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter) {
         super(config, messageAdapter);
         
         //设置不自动提交
@@ -64,7 +65,8 @@ public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafk
      * @param messageAdapter
      * @param msPollTimeout
      */
-    public KafkaNoAutoReceiverMQ(Resource config, KafkaMessageAdapter<K, V> messageAdapter, long msPollTimeout) {
+    public KafkaNoAutoReceiverMQ(Resource config, KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter
+            , long msPollTimeout) {
         super(config, messageAdapter, msPollTimeout);
 
         //设置不自动提交

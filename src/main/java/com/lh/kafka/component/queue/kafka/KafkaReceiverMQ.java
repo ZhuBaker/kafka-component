@@ -1,5 +1,6 @@
 package com.lh.kafka.component.queue.kafka;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -61,7 +62,7 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
      * @param config
      * @param messageAdapter
      */
-    public KafkaReceiverMQ(Resource config, KafkaMessageAdapter<K, V> messageAdapter) {
+    public KafkaReceiverMQ(Resource config, KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter) {
         super(config, messageAdapter);
     }
 
@@ -71,7 +72,7 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
      * @param messageAdapter
      * @param commit
      */
-    public KafkaReceiverMQ(Resource config, KafkaMessageAdapter<K, V> messageAdapter, Commit commit) {
+    public KafkaReceiverMQ(Resource config, KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter, Commit commit) {
         super(config, messageAdapter);
         setCommit(commit);
     }

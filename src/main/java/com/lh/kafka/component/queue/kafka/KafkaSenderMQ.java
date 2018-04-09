@@ -11,8 +11,10 @@ import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
 
+import com.lh.kafka.component.queue.exception.MQException;
 import com.lh.kafka.component.queue.kafka.client.producer.IKafkaMsSenderClient;
 import com.lh.kafka.component.queue.kafka.client.producer.KafkaMsSenderClient;
+import com.lh.kafka.component.queue.kafka.codec.KafkaMessageEncoder;
 import com.lh.kafka.component.queue.kafka.exception.KafkaUnrecoverableException;
 import com.lh.kafka.component.queue.kafka.support.KafkaTopic;
 
@@ -31,6 +33,11 @@ public class KafkaSenderMQ<K, V> implements IKafkaSenderMQ<K, V> {
     protected Properties props = new Properties();
     
     /**
+     * kafka编码器
+     */
+    private KafkaMessageEncoder<K, V> messageEncoder = new KafkaMessageEncoder<K, V>();
+    
+    /**
      * 是否运行：默认不运行
      */
     private AtomicBoolean running = new AtomicBoolean(false);
@@ -43,7 +50,7 @@ public class KafkaSenderMQ<K, V> implements IKafkaSenderMQ<K, V> {
     /**
      * 发送客户端
      */
-    private IKafkaMsSenderClient<K, V> sender;
+    private IKafkaMsSenderClient<byte[], byte[]> sender;
     
     /**
      * 构造方法
@@ -61,7 +68,7 @@ public class KafkaSenderMQ<K, V> implements IKafkaSenderMQ<K, V> {
      * @param resource
      * @param sender
      */
-    public KafkaSenderMQ(Resource resource, IKafkaMsSenderClient<K, V> sender) {
+    public KafkaSenderMQ(Resource resource, IKafkaMsSenderClient<byte[], byte[]> sender) {
         super();
         setResource(resource);
         setSender(sender);
@@ -128,34 +135,40 @@ public class KafkaSenderMQ<K, V> implements IKafkaSenderMQ<K, V> {
         }
     }
 
-    public IKafkaMsSenderClient<K, V> getSender() {
+    public IKafkaMsSenderClient<byte[], byte[]> getSender() {
         if(sender == null){
-            sender = new KafkaMsSenderClient<K, V>(props);
+            sender = new KafkaMsSenderClient<byte[], byte[]>(props);
         }
         return sender;
     }
 
-    public void setSender(IKafkaMsSenderClient<K, V> sender) {
+    public void setSender(IKafkaMsSenderClient<byte[], byte[]> sender) {
         this.sender = sender;
     }
 
     @Override
-    public void send(KafkaTopic topic, V message) throws KafkaException, KafkaUnrecoverableException {
-        getSender().send(topic.getTopic(), message);
+    public void send(KafkaTopic topic, V message) throws KafkaException, KafkaUnrecoverableException, MQException {
+        byte[] messageBytes = messageEncoder.encodeVal(message);
+        getSender().send(topic.getTopic(), messageBytes);
     }
 
     @Override
-    public void send(KafkaTopic topic, K key, V message) throws KafkaException, KafkaUnrecoverableException {
-        getSender().sendMap(topic.getTopic(), key, message);
+    public void send(KafkaTopic topic, K key, V message) throws KafkaException, KafkaUnrecoverableException, MQException {
+        byte[] keyBytes = messageEncoder.encodeKey(key);
+        byte[] messageBytes = messageEncoder.encodeVal(message);
+        getSender().sendMap(topic.getTopic(), keyBytes, messageBytes);
     }
 
     @Override
-    public void send(KafkaTopic topic, V message, IKafkaCallback callback) {
-        getSender().send(topic.getTopic(), message, callback);
+    public void send(KafkaTopic topic, V message, IKafkaCallback callback) throws MQException {
+        byte[] messageBytes = messageEncoder.encodeVal(message);
+        getSender().send(topic.getTopic(), messageBytes, callback);
     }
 
     @Override
-    public void send(KafkaTopic topic, K key, V message, IKafkaCallback callback) {
-        getSender().sendMap(topic.getTopic(), key, message, callback);
+    public void send(KafkaTopic topic, K key, V message, IKafkaCallback callback) throws MQException {
+        byte[] keyBytes = messageEncoder.encodeKey(key);
+        byte[] messageBytes = messageEncoder.encodeVal(message);
+        getSender().sendMap(topic.getTopic(), keyBytes, messageBytes, callback);
     }
 }

@@ -18,7 +18,7 @@ import com.lh.kafka.component.queue.kafka.support.KafkaTopic;
  */
 public class KafkaMessageAdapter<K, V> {
     
-    private KafkaMessageDecoder<K, V> decoder;
+    private KafkaMessageDecoder<K, V> messageDecoder = new KafkaMessageDecoder<K, V>();
     
     private MQConsumer<K, V> mqConsumer;
 
@@ -37,14 +37,6 @@ public class KafkaMessageAdapter<K, V> {
         if(kafkaTopic == null){
             throw new IllegalArgumentException("Property param [kafkaTopic] must be not null.");
         }
-    }
-
-    public KafkaMessageDecoder<K, V> getDecoder() {
-        return decoder;
-    }
-
-    public void setDecoder(KafkaMessageDecoder<K, V> decoder) {
-        this.decoder = decoder;
     }
 
     public MQConsumer<K, V> getMqConsumer() {
@@ -68,15 +60,17 @@ public class KafkaMessageAdapter<K, V> {
      * @param records
      * @throws MQException
      */
-    public void adapter(ConsumerRecords<K, V> records) throws MQException{
+    public void adapter(ConsumerRecords<?, ?> records) throws MQException{
         if(this.mqConsumer == null){
             throw new MQException("MessageAdapter property [mqConsumer] is null.");
         }
         
-        Map<K, V> message = new HashMap<K, V>();
-        for (ConsumerRecord<K, V> record : records) {
-            message.put(record.key(), record.value());
+        Map<byte[], byte[]> messageBytes = new HashMap<byte[], byte[]>();
+        for (ConsumerRecord<?, ?> record : records) {
+            messageBytes.put((byte[])record.key(), (byte[])record.value());
         }
+        
+        Map<K, V> message = messageDecoder.decodeMap(messageBytes);
         mqConsumer.handle(message);
     }
     
@@ -85,12 +79,12 @@ public class KafkaMessageAdapter<K, V> {
      * @param record
      * @throws MQException
      */
-    public void adapter(ConsumerRecord<K, V> record) throws MQException{
+    public void adapter(ConsumerRecord<?, ?> record) throws MQException{
         if(this.mqConsumer == null){
             throw new MQException("MessageAdapter property [mqConsumer] is null.");
         }
-        K key = record.key();
-        V message = record.value();
+        K key = messageDecoder.decodeKey((byte[]) record.key());
+        V message = messageDecoder.decodeVal((byte[]) record.value());
         mqConsumer.handle(key, message);
     }
 }

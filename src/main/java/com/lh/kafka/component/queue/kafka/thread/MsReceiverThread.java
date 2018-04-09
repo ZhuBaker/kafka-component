@@ -1,5 +1,6 @@
 package com.lh.kafka.component.queue.kafka.thread;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -29,7 +30,7 @@ public class MsReceiverThread<K, V> implements Runnable {
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private IKafkaMsReceiverClient<K, V> receiver;
-    private KafkaMessageAdapter<K, V> messageAdapter;
+    private KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter;
     private BlockingQueue<ConsumerRecords<K, V>> blockingQueue;
     private Model model = Model.MODEL_1;
     private Batch batch = Batch.NO;
@@ -51,7 +52,7 @@ public class MsReceiverThread<K, V> implements Runnable {
      * @param kafkaTopic    消息消费的topic
      */
     public MsReceiverThread(IKafkaMsReceiverClient<K, V> receiver,
-            KafkaMessageAdapter<K, V> messageAdapter,
+            KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter,
             BlockingQueue<ConsumerRecords<K, V>> blockingQueue, Model model,
             Batch batch, Commit commit, long msReceiverThreadSleepTime,
             long msPollTimeout, KafkaTopic kafkaTopic) {
@@ -74,11 +75,11 @@ public class MsReceiverThread<K, V> implements Runnable {
         this.receiver = receiver;
     }
 
-    public KafkaMessageAdapter<K, V> getMessageAdapter() {
+    public KafkaMessageAdapter<? extends Serializable, ? extends Serializable> getMessageAdapter() {
         return messageAdapter;
     }
 
-    public void setMessageAdapter(KafkaMessageAdapter<K, V> messageAdapter) {
+    public void setMessageAdapter(KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter) {
         this.messageAdapter = messageAdapter;
     }
 

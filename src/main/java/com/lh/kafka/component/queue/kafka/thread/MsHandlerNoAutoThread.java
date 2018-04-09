@@ -1,5 +1,6 @@
 package com.lh.kafka.component.queue.kafka.thread;
 
+import java.io.Serializable;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -28,7 +29,7 @@ public class MsHandlerNoAutoThread<K, V> implements Runnable {
     /**
      * 消息适配器
      */
-    private KafkaMessageAdapter<K, V> messageAdapter;
+    private KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter;
 
     /**
      * 本地消费队列
@@ -45,7 +46,7 @@ public class MsHandlerNoAutoThread<K, V> implements Runnable {
      * @param messageAdapter
      * @param blockingQueue
      */
-    public MsHandlerNoAutoThread(KafkaMessageAdapter<K, V> messageAdapter,
+    public MsHandlerNoAutoThread(KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter,
             BlockingQueue<ConsumerRecord<K, V>> blockingQueue) {
         this.messageAdapter = messageAdapter;
         this.blockingQueue = blockingQueue;
@@ -58,7 +59,7 @@ public class MsHandlerNoAutoThread<K, V> implements Runnable {
      * @param blockingQueue
      * @param msHandlerThreadSleepTime
      */
-    public MsHandlerNoAutoThread(KafkaMessageAdapter<K, V> messageAdapter,
+    public MsHandlerNoAutoThread(KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter,
                                  BlockingQueue<ConsumerRecord<K, V>> blockingQueue,
                                  long msHandlerThreadSleepTime) {
         this.messageAdapter = messageAdapter;

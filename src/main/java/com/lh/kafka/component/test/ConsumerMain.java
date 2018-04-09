@@ -19,10 +19,21 @@ public class ConsumerMain {
 
         Resource config = new DefaultResourceLoader().getResource("kafka/kafka-consumer.properties");
         KafkaTopic kafkaTopic = new KafkaTopic("my-test-topic");
-        KafkaMessageAdapter<String,String> adater = new KafkaMessageAdapter<String, String>(mqConsumer, kafkaTopic);
-        KafkaReceiverMQ<String,String> receiverMQ = new KafkaReceiverMQ<String, String>(config,adater);
-        receiverMQ.start();
+        
+        //step1
+        {
+            KafkaMessageAdapter<String,String> adater = new KafkaMessageAdapter<String, String>(mqConsumer, kafkaTopic);
+            KafkaReceiverMQ<byte[],byte[]> receiverMQ = new KafkaReceiverMQ<byte[], byte[]>(config,adater);
+            receiverMQ.start();
+        }
+        
 
+        //step2
+        {
+            
+        }
+
+        System.out.println("Consumer start success.");
         try {
             Thread.sleep(24 * 3600 * 1000L);
         } catch (InterruptedException e) {

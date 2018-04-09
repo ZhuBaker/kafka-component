@@ -1,5 +1,6 @@
 package com.lh.kafka.component.queue.kafka.thread;
 
+import java.io.Serializable;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -33,7 +34,7 @@ public class MsHandlerThread<K, V> implements Runnable {
     /**
      * 消息适配器
      */
-    private KafkaMessageAdapter<K, V> messageAdapter;
+    private KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter;
     
     /**
      * 消费的本地队列
@@ -50,7 +51,7 @@ public class MsHandlerThread<K, V> implements Runnable {
      * @param messageAdapter    消息适配器
      * @param blockingQueue 
      */
-    public MsHandlerThread(KafkaMessageAdapter<K, V> messageAdapter,
+    public MsHandlerThread(KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter,
             BlockingQueue<ConsumerRecords<K, V>> blockingQueue) {
         super();
         this.messageAdapter = messageAdapter;
@@ -63,7 +64,7 @@ public class MsHandlerThread<K, V> implements Runnable {
      * @param blockingQueue
      * @param msHandlerThreadSleepTime
      */
-    public MsHandlerThread(KafkaMessageAdapter<K, V> messageAdapter,
+    public MsHandlerThread(KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter,
                            BlockingQueue<ConsumerRecords<K, V>> blockingQueue,
                            long msHandlerThreadSleepTime) {
         super();
@@ -79,7 +80,7 @@ public class MsHandlerThread<K, V> implements Runnable {
      * @param blockingQueue
      */
     public MsHandlerThread(Batch batch,
-            KafkaMessageAdapter<K, V> messageAdapter,
+            KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter,
             BlockingQueue<ConsumerRecords<K, V>> blockingQueue) {
         super();
         if(batch != null){
@@ -97,7 +98,7 @@ public class MsHandlerThread<K, V> implements Runnable {
      * @param msHandlerThreadSleepTime
      */
     public MsHandlerThread(Batch batch,
-                           KafkaMessageAdapter<K, V> messageAdapter,
+                           KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter,
                            BlockingQueue<ConsumerRecords<K, V>> blockingQueue,
                            long msHandlerThreadSleepTime) {
         super();

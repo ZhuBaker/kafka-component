@@ -2,6 +2,7 @@ package com.lh.kafka.component.queue.kafka;
 
 import org.apache.kafka.common.KafkaException;
 
+import com.lh.kafka.component.queue.exception.MQException;
 import com.lh.kafka.component.queue.kafka.exception.KafkaUnrecoverableException;
 import com.lh.kafka.component.queue.kafka.support.KafkaTopic;
 
@@ -50,8 +51,9 @@ public interface IKafkaSenderMQ<K, V> extends IKafakaMQ {
      * @param message
      * @throws KafkaException
      * @throws KafkaUnrecoverableException
+     * @throws MQException 
      */
-    public void send(KafkaTopic topic, V message) throws KafkaException, KafkaUnrecoverableException;
+    public void send(KafkaTopic topic, V message) throws KafkaException, KafkaUnrecoverableException, MQException;
     
     /**
      * 发送到kafka
@@ -60,16 +62,18 @@ public interface IKafkaSenderMQ<K, V> extends IKafakaMQ {
      * @param message
      * @throws KafkaException
      * @throws KafkaUnrecoverableException
+     * @throws MQException 
      */
-    public void send(KafkaTopic topic, K key, V message) throws KafkaException, KafkaUnrecoverableException;
+    public void send(KafkaTopic topic, K key, V message) throws KafkaException, KafkaUnrecoverableException, MQException;
     
     /**
      * 发送到kafka
      * @param topic
      * @param message
      * @param callback
+     * @throws MQException 
      */
-    public void send(KafkaTopic topic, V message, IKafkaCallback callback);
+    public void send(KafkaTopic topic, V message, IKafkaCallback callback) throws MQException;
     
     /**
      * 发送到kafka
@@ -77,6 +81,7 @@ public interface IKafkaSenderMQ<K, V> extends IKafakaMQ {
      * @param key
      * @param message
      * @param callback
+     * @throws MQException 
      */
-    public void send(KafkaTopic topic, K key, V message, IKafkaCallback callback);
+    public void send(KafkaTopic topic, K key, V message, IKafkaCallback callback) throws MQException;
 }
