@@ -1,6 +1,5 @@
 package com.lh.kafka.component.queue.kafka;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -28,7 +27,7 @@ import com.lh.kafka.component.queue.kafka.thread.MsReceiverThread;
  * @version 创建时间：2018年3月29日 上午11:03:23
  * 说明：此方式为默认自动消费方式
  */
-public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaReceiverMQ<K, V> {
+public class KafkaReceiverMQ extends KafakaBaseReceiverMQ implements IKafkaReceiverMQ {
     
     private static final Logger logger = LoggerFactory.getLogger(KafkaReceiverMQ.class);
     
@@ -45,35 +44,43 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
     /**
      * 接收本地线程
      */
-    private BlockingQueue<ConsumerRecords<K, V>> blockingQueue;
+    private BlockingQueue<ConsumerRecords<byte[], byte[]>> blockingQueue;
+    
+    /**
+     * 消息适配器
+     */
+    private KafkaMessageAdapter<?, ?> messageAdapter;
     
     /**   
      * 消息接收器列表(size: 指定topic的partition大小)
      */
-    private List<MsReceiverThread<K,V>> msReceiverThreads = new ArrayList<MsReceiverThread<K,V>>();
+    private List<MsReceiverThread<byte[],byte[]>> msReceiverThreads = new ArrayList<MsReceiverThread<byte[],byte[]>>();
     
     /**
      * 消息接收处理线程
      */
-    private List<MsHandlerThread<K,V>> msHandlerThreads = new ArrayList<MsHandlerThread<K,V>>();
+    private List<MsHandlerThread<byte[],byte[]>> msHandlerThreads = new ArrayList<MsHandlerThread<byte[],byte[]>>();
 
     /**
      * 构造方法
      * @param config
-     * @param messageAdapter
+     * @param noAutoMessageAdapter
      */
-    public KafkaReceiverMQ(Resource config, KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter) {
-        super(config, messageAdapter);
+    public KafkaReceiverMQ(Resource config, KafkaMessageAdapter<?, ?> noAutoMessageAdapter) {
+        super(config);
+        setMessageAdapter(messageAdapter);
     }
 
     /**
      * 构造方法
      * @param config
-     * @param messageAdapter
+     * @param noAutoMessageAdapter
      * @param commit
      */
-    public KafkaReceiverMQ(Resource config, KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter, Commit commit) {
-        super(config, messageAdapter);
+    public KafkaReceiverMQ(Resource config, KafkaMessageAdapter<?, ?> noAutoMessageAdapter,
+            Commit commit) {
+        super(config);
+        setMessageAdapter(messageAdapter);
         setCommit(commit);
     }
 
@@ -97,12 +104,20 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
         this.batch = batch;
     }
 
-    public BlockingQueue<ConsumerRecords<K, V>> getBlockingQueue() {
+    public BlockingQueue<ConsumerRecords<byte[], byte[]>> getBlockingQueue() {
         return blockingQueue;
     }
 
-    public void setBlockingQueue(BlockingQueue<ConsumerRecords<K, V>> blockingQueue) {
+    public void setBlockingQueue(BlockingQueue<ConsumerRecords<byte[], byte[]>> blockingQueue) {
         this.blockingQueue = blockingQueue;
+    }
+    
+    public KafkaMessageAdapter<?, ?> getMessageAdapter() {
+        return messageAdapter;
+    }
+
+    public void setMessageAdapter(KafkaMessageAdapter<?, ?> messageAdapter) {
+        this.messageAdapter = messageAdapter;
     }
 
     @Override
@@ -113,7 +128,7 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
         }
         
         //获取一个新的接收器
-        IKafkaMsReceiverClient<K, V> receiver = getNewReceiver();
+        IKafkaMsReceiverClient<byte[], byte[]> receiver = getNewReceiverClient();
 
         String topic = messageAdapter.getKafkaTopic().getTopic();
         int partitionCount = receiver.getPartitionCount(topic);
@@ -128,14 +143,14 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
             break;
         case MODEL_2:
             //初始化队列大小
-            blockingQueue = new LinkedBlockingDeque<ConsumerRecords<K,V>>(this.asyncQueueSize);
+            blockingQueue = new LinkedBlockingDeque<ConsumerRecords<byte[],byte[]>>(this.asyncQueueSize);
             receiverExecutorService = Executors.newFixedThreadPool(this.getPoolSize(), new KafkaThreadFactory(topic));
             
             //初始化处理线程
             int handleSize = this.getPoolSize() * this.getAsyncHandleCoefficient() + 1;
             handlerExecutorService = Executors.newFixedThreadPool(handleSize, new KafkaThreadFactory(topic));
             for (int i = 0; i < handleSize; i++) {
-                MsHandlerThread<K, V> msHandlerThread = new MsHandlerThread<K, V>(messageAdapter, blockingQueue);
+                MsHandlerThread<byte[], byte[]> msHandlerThread = new MsHandlerThread<byte[], byte[]>(messageAdapter, blockingQueue);
                 msHandlerThreads.add(msHandlerThread);
                 handlerExecutorService.submit(msHandlerThread);
             }
@@ -143,7 +158,7 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
             break;
         default:
             //归还接收器
-            returnReceiver(receiver);
+            returnReceiverClient(receiver);
             logger.warn("Message receiver mq start by no model.");
             return;
         }
@@ -154,7 +169,7 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
             Properties properties = (Properties) props.clone();
             properties.setProperty(KafkaConstants.CLIENT_ID, getClientId() + "-" + topic + "-" + i);
             
-            MsReceiverThread<K, V> msReceiverThread = new MsReceiverThread<K, V>(receiver, 
+            MsReceiverThread<byte[], byte[]> msReceiverThread = new MsReceiverThread<byte[], byte[]>(receiver, 
                     messageAdapter, blockingQueue, getModel(), getBatch(), getCommit(),
                     getMsReceiverThreadSleepTime(), getMsPollTimeout(), new KafkaTopic(topic));
             msReceiverThreads.add(msReceiverThread);
@@ -169,7 +184,7 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
     @Override
     public void destroy() {
         //关闭所有的接收线程
-        for(MsReceiverThread<K, V> msReceiverThread : msReceiverThreads){
+        for(MsReceiverThread<byte[], byte[]> msReceiverThread : msReceiverThreads){
             msReceiverThread.shutdown();
         }
         
@@ -187,7 +202,7 @@ public class KafkaReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaRecei
         }
         
         //关闭所有的处理线程
-        for(MsHandlerThread<K, V> msHandlerThread : msHandlerThreads){
+        for(MsHandlerThread<byte[], byte[]> msHandlerThread : msHandlerThreads){
             msHandlerThread.shutdown();
         }
         

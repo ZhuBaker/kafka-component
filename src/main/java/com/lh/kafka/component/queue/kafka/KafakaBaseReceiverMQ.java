@@ -1,7 +1,6 @@
 package com.lh.kafka.component.queue.kafka;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -14,7 +13,6 @@ import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
 
-import com.lh.kafka.component.queue.kafka.adapter.KafkaMessageAdapter;
 import com.lh.kafka.component.queue.kafka.client.consumer.IKafkaMsReceiverClient;
 import com.lh.kafka.component.queue.kafka.client.consumer.KafkaMsReceiverClient;
 import com.lh.kafka.component.queue.kafka.cons.KafkaConstants;
@@ -24,9 +22,9 @@ import com.lh.kafka.component.queue.kafka.cons.KafkaConstants;
  * @version 创建时间：2018年4月4日 下午4:53:15
  * 说明：抽象消息队列
  */
-public abstract class KafakaMQ<K, V> implements IKafakaMQ {
+public abstract class KafakaBaseReceiverMQ implements IKafakaMQ {
     
-    protected static final Logger logger = LoggerFactory.getLogger(KafakaMQ.class);
+    protected static final Logger logger = LoggerFactory.getLogger(KafakaBaseReceiverMQ.class);
     
     /**
      * 是否运行：默认不运行
@@ -37,11 +35,6 @@ public abstract class KafakaMQ<K, V> implements IKafakaMQ {
      * 配置属性
      */
     protected Properties props = new Properties();
-    
-    /**
-     * 消息适配器
-     */
-    protected KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter;
     
     /**   
      * 异步处理消息队列长度(Model是Model_2时生效 )
@@ -94,23 +87,18 @@ public abstract class KafakaMQ<K, V> implements IKafakaMQ {
     /**
      * 构造方法
      * @param config
-     * @param messageAdapter
      */
-    public KafakaMQ(Resource config, KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter) {
+    public KafakaBaseReceiverMQ(Resource config) {
         setConfig(config);
-        setMessageAdapter(messageAdapter);
     }
 
     /**
      * 构造方法
      * @param config
-     * @param messageAdapter
      * @param msPollTimeout
      */
-    public KafakaMQ(Resource config, KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter
-            , long msPollTimeout) {
+    public KafakaBaseReceiverMQ(Resource config, long msPollTimeout) {
         setConfig(config);
-        setMessageAdapter(messageAdapter);
         setMsPollTimeout(msPollTimeout);
     }
 
@@ -124,11 +112,11 @@ public abstract class KafakaMQ<K, V> implements IKafakaMQ {
         this.running.set(false);
     }
 
-    public IKafkaMsReceiverClient<K, V> getNewReceiver() {
-        return new KafkaMsReceiverClient<K, V>((Properties) props.clone());
+    public IKafkaMsReceiverClient<byte[], byte[]> getNewReceiverClient() {
+        return new KafkaMsReceiverClient<byte[], byte[]>((Properties) props.clone());
     }
     
-    public void returnReceiver(IKafkaMsReceiverClient<K, V> receiverClient) {
+    public void returnReceiverClient(IKafkaMsReceiverClient<byte[], byte[]> receiverClient) {
         if(receiverClient != null){
             receiverClient.shutDown();
         }
@@ -140,14 +128,6 @@ public abstract class KafakaMQ<K, V> implements IKafakaMQ {
 
     public void setProps(Properties props) {
         this.props = props;
-    }
-    
-    public KafkaMessageAdapter<?, ?> getMessageAdapter() {
-        return messageAdapter;
-    }
-
-    public void setMessageAdapter(KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter) {
-        this.messageAdapter = messageAdapter;
     }
 
     public int getAsyncQueueSize() {

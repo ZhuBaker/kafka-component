@@ -7,32 +7,32 @@ import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 
-import com.lh.kafka.component.queue.MQConsumer;
+import com.lh.kafka.component.queue.MQNoAutoConsumer;
 import com.lh.kafka.component.queue.exception.MQException;
 import com.lh.kafka.component.queue.kafka.codec.KafkaMessageDecoder;
 import com.lh.kafka.component.queue.kafka.support.KafkaTopic;
 
 /**
  * @author 林浩<hao.lin@w-oasis.com>
- * @version 创建时间：2018年3月29日 上午11:24:26
+ * @version 创建时间：2018年4月10日 下午2:38:08
  * 说明：消息适配器
  */
-public class KafkaMessageAdapter<K extends Serializable, V extends Serializable> {
+public class KafkaNoAutoMessageAdapter<K extends Serializable, V extends Serializable, E> {
     
     private KafkaMessageDecoder<K, V> messageDecoder = new KafkaMessageDecoder<K, V>();
     
-    private MQConsumer<K, V> mqConsumer;
+    private MQNoAutoConsumer<K, V, E> mqNoAutoConsumer;
 
     private KafkaTopic kafkaTopic;
-
-    private KafkaMessageAdapter() {
+    
+    private KafkaNoAutoMessageAdapter() {
         super();
     }
 
-    public KafkaMessageAdapter(MQConsumer<K, V> mqConsumer,
+    public KafkaNoAutoMessageAdapter(MQNoAutoConsumer<K, V, E> mqNoAutoConsumer,
             KafkaTopic kafkaTopic) {
         this();
-        this.mqConsumer = mqConsumer;
+        this.mqNoAutoConsumer = mqNoAutoConsumer;
         this.kafkaTopic = kafkaTopic;
 
         if(kafkaTopic == null){
@@ -40,12 +40,12 @@ public class KafkaMessageAdapter<K extends Serializable, V extends Serializable>
         }
     }
 
-    public MQConsumer<K, V> getMqConsumer() {
-        return mqConsumer;
+    public MQNoAutoConsumer<K, V, E> getMqNoAutoConsumer() {
+        return mqNoAutoConsumer;
     }
 
-    public void setMqConsumer(MQConsumer<K, V> mqConsumer) {
-        this.mqConsumer = mqConsumer;
+    public void setMqNoAutoConsumer(MQNoAutoConsumer<K, V, E> mqNoAutoConsumer) {
+        this.mqNoAutoConsumer = mqNoAutoConsumer;
     }
 
     public KafkaTopic getKafkaTopic() {
@@ -55,15 +55,16 @@ public class KafkaMessageAdapter<K extends Serializable, V extends Serializable>
     public void setKafkaTopic(KafkaTopic kafkaTopic) {
         this.kafkaTopic = kafkaTopic;
     }
-    
+
     /**
      * 消息适配
-     * @param records
+     * @param message   消息对象
+     * @param extend   扩展对象
      * @throws MQException
      */
-    public void adapter(ConsumerRecords<?, ?> records) throws MQException{
-        if(this.mqConsumer == null){
-            throw new MQException("MessageAdapter property [mqConsumer] is null.");
+    public void adapter(ConsumerRecords<?, ?> records, E extend) throws MQException{
+        if(this.mqNoAutoConsumer == null){
+            throw new MQException("MessageAdapter property [mqNoAutoConsumer] is null.");
         }
         
         Map<byte[], byte[]> messageBytes = new HashMap<byte[], byte[]>();
@@ -72,20 +73,21 @@ public class KafkaMessageAdapter<K extends Serializable, V extends Serializable>
         }
         
         Map<K, V> message = messageDecoder.decodeMap(messageBytes);
-        mqConsumer.handle(message);
+        mqNoAutoConsumer.handle(message, extend);
     }
     
     /**
      * 消息适配
-     * @param record
+     * @param message   消息对象
+     * @param extend   扩展对象
      * @throws MQException
      */
-    public void adapter(ConsumerRecord<?, ?> record) throws MQException{
-        if(this.mqConsumer == null){
+    public void adapter(ConsumerRecord<?, ?> record, E extend) throws MQException{
+        if(this.mqNoAutoConsumer == null){
             throw new MQException("MessageAdapter property [mqConsumer] is null.");
         }
         K key = messageDecoder.decodeKey((byte[]) record.key());
         V message = messageDecoder.decodeVal((byte[]) record.value());
-        mqConsumer.handle(key, message);
+        mqNoAutoConsumer.handle(key, message, extend);
     }
 }

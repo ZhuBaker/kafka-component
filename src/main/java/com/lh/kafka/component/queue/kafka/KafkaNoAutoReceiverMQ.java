@@ -1,6 +1,5 @@
 package com.lh.kafka.component.queue.kafka;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -11,13 +10,15 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import com.lh.kafka.component.queue.kafka.support.Commit;
 import com.lh.kafka.component.queue.kafka.support.KafkaTopic;
+import com.lh.kafka.component.queue.kafka.support.Model;
+import com.lh.kafka.component.queue.kafka.support.NoAutoConsumerRecordQueueItem;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.springframework.core.io.Resource;
 
 import com.lh.kafka.component.queue.exception.MQException;
-import com.lh.kafka.component.queue.kafka.adapter.KafkaMessageAdapter;
+import com.lh.kafka.component.queue.kafka.adapter.KafkaNoAutoMessageAdapter;
 import com.lh.kafka.component.queue.kafka.client.consumer.IKafkaMsReceiverClient;
 import com.lh.kafka.component.queue.kafka.cons.KafkaConstants;
 import com.lh.kafka.component.queue.kafka.thread.KafkaThreadFactory;
@@ -27,8 +28,11 @@ import com.lh.kafka.component.queue.kafka.thread.MsHandlerNoAutoThread;
  * @author 林浩<hao.lin@w-oasis.com>
  * @version 创建时间：2018年3月30日 下午4:54:36
  * 说明：此方式未默认非自动消费方式（可以根据业务手动消费）
+ * <p>
+ *      说明：默认使用model1模式消费，调用receive接口时是同步方式；若采用model2方式消费receive接口返回的值会与hanlde存在异步关系
+ * </p>
  */
-public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafkaNoAutoReceiverMQ<K, V> {
+public class KafkaNoAutoReceiverMQ<E> extends KafakaBaseReceiverMQ implements IKafkaNoAutoReceiverMQ<E> {
 
     /**
      * 提交方式：默认同步提交（不可以设置自动提交）
@@ -38,25 +42,29 @@ public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafk
     /**
      * 接收本地线程
      */
-    private BlockingQueue<ConsumerRecord<K, V>> blockingQueue;
+    private BlockingQueue<NoAutoConsumerRecordQueueItem<byte[],byte[], E>> blockingQueue;
+    
+    /**
+     * 消息适配器
+     */
+    private KafkaNoAutoMessageAdapter<?, ?, E> noAutoMessageAdapter;
     
     /**
      * 消息接收处理线程
      */
-    private List<MsHandlerNoAutoThread<K,V>> msHandlerThreads = new ArrayList<MsHandlerNoAutoThread<K,V>>();
+    private List<MsHandlerNoAutoThread<byte[],byte[], E>> msHandlerThreads = new ArrayList<MsHandlerNoAutoThread<byte[],byte[], E>>();
 
     /**
      * 构造方法
      * @param config
      * @param messageAdapter
      */
-    public KafkaNoAutoReceiverMQ(Resource config, KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter) {
-        super(config, messageAdapter);
+    public KafkaNoAutoReceiverMQ(Resource config, KafkaNoAutoMessageAdapter<?, ?, E> noAutoMessageAdapter) {
+        super(config);
+        setNoAutoMessageAdapter(noAutoMessageAdapter);
         
-        //设置不自动提交
-        if(getProps() != null){
-            getProps().setProperty(KafkaConstants.ENABLE_AUTO_COMMIT, "false");
-        }
+        //初始化配置信息
+        initConfig();
     }
 
     /**
@@ -65,14 +73,26 @@ public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafk
      * @param messageAdapter
      * @param msPollTimeout
      */
-    public KafkaNoAutoReceiverMQ(Resource config, KafkaMessageAdapter<? extends Serializable, ? extends Serializable> messageAdapter
+    public KafkaNoAutoReceiverMQ(Resource config, KafkaNoAutoMessageAdapter<?, ?, E> noAutoMessageAdapter
             , long msPollTimeout) {
-        super(config, messageAdapter, msPollTimeout);
-
+        super(config, msPollTimeout);
+        setNoAutoMessageAdapter(noAutoMessageAdapter);
+        
+        //初始化配置信息
+        initConfig();
+    }
+    
+    /**
+     * 初始化配置信息
+     */
+    private void initConfig(){
         //设置不自动提交
         if(getProps() != null){
             getProps().setProperty(KafkaConstants.ENABLE_AUTO_COMMIT, "false");
         }
+        
+        //设置运行中
+        running.set(true);
     }
 
     public Commit getCommit() {
@@ -89,12 +109,21 @@ public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafk
         }
     }
     
-    public BlockingQueue<ConsumerRecord<K, V>> getBlockingQueue() {
+    public BlockingQueue<NoAutoConsumerRecordQueueItem<byte[],byte[], E>> getBlockingQueue() {
         return blockingQueue;
     }
 
-    public void setBlockingQueue(BlockingQueue<ConsumerRecord<K, V>> blockingQueue) {
+    public void setBlockingQueue(BlockingQueue<NoAutoConsumerRecordQueueItem<byte[],byte[], E>> blockingQueue) {
         this.blockingQueue = blockingQueue;
+    }
+
+    public KafkaNoAutoMessageAdapter<?, ?, E> getNoAutoMessageAdapter() {
+        return noAutoMessageAdapter;
+    }
+
+    public void setNoAutoMessageAdapter(
+            KafkaNoAutoMessageAdapter<?, ?, E> noAutoMessageAdapter) {
+        this.noAutoMessageAdapter = noAutoMessageAdapter;
     }
 
     @Override
@@ -107,7 +136,7 @@ public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafk
         }
 
         //关闭所有的处理线程
-        for(MsHandlerNoAutoThread<K, V> msHandlerThread : msHandlerThreads){
+        for(MsHandlerNoAutoThread<byte[], byte[], E> msHandlerThread : msHandlerThreads){
             msHandlerThread.shutdown();
         }
 
@@ -125,6 +154,11 @@ public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafk
     
     @Override
     public int receive(int num) throws MQException {
+        return receive(num, null);
+    }
+    
+    @Override
+    public int receive(int num, E extend) throws MQException {
         //判断是否是手动提交模式
         String commit = getProps().getProperty(KafkaConstants.ENABLE_AUTO_COMMIT);
         if(commit == null || "true".equals(commit)){
@@ -133,67 +167,72 @@ public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafk
                     + "setCommit(Commit.ASYNC_COMMIT|Commit.SYNC_COMMIT)");
         }
 
-        // 使用模式：MODEL_2
-        if(blockingQueue == null){
-            blockingQueue = new LinkedBlockingQueue<ConsumerRecord<K, V>>(this.asyncQueueSize);
-        }
+        //接受kafka消息客户端
+        IKafkaMsReceiverClient<byte[], byte[]> receiverClient = null;
+        String topic = noAutoMessageAdapter.getKafkaTopic().getTopic();
 
-        IKafkaMsReceiverClient<K, V> receiver = null;
-        String topic = messageAdapter.getKafkaTopic().getTopic();
-        if(handlerExecutorService == null){
-            //获取一个新的接收器
-            receiver = getNewReceiver();
-            int partitionCount = receiver.getPartitionCount(topic);
-            if(this.poolSize == 0 || this.poolSize > partitionCount){
-                setPoolSize(partitionCount);
+        // 使用模式：MODEL_2
+        if(this.model == Model.MODEL_2){
+            if(blockingQueue == null){
+                blockingQueue = new LinkedBlockingQueue<NoAutoConsumerRecordQueueItem<byte[],byte[], E>>(this.asyncQueueSize);
             }
-            
-            //初始化接收线程池(线程池大小由partition决定)
-            handlerExecutorService = Executors.newFixedThreadPool(partitionCount, new KafkaThreadFactory(topic));
-            
-            //初始化处理线程
-            int handleSize = this.getPoolSize() * this.getAsyncHandleCoefficient() + 1;
-            for (int i = 0; i < handleSize; i++) {
-                Properties properties = (Properties) props.clone();
-                properties.setProperty(KafkaConstants.CLIENT_ID, getClientId() + "-" + topic + "-" + i);
+            if(handlerExecutorService == null){
+                //获取一个新的接收器
+                receiverClient = getNewReceiverClient();
+                int partitionCount = receiverClient.getPartitionCount(topic);
+                if(this.poolSize == 0 || this.poolSize > partitionCount){
+                    setPoolSize(partitionCount);
+                }
                 
-                MsHandlerNoAutoThread<K, V> msHandlerThread = new MsHandlerNoAutoThread<K, V>(messageAdapter, blockingQueue);
-                msHandlerThreads.add(msHandlerThread);
-                handlerExecutorService.submit(msHandlerThread);
+                //初始化接收线程池(线程池大小由partition决定)
+                handlerExecutorService = Executors.newFixedThreadPool(partitionCount, new KafkaThreadFactory(topic));
+                
+                //初始化处理线程
+                int handleSize = this.getPoolSize() * this.getAsyncHandleCoefficient() + 1;
+                for (int i = 0; i < handleSize; i++) {
+                    Properties properties = (Properties) props.clone();
+                    properties.setProperty(KafkaConstants.CLIENT_ID, getClientId() + "-" + topic + "-" + i);
+                    
+                    MsHandlerNoAutoThread<byte[], byte[], E> msHandlerThread = new MsHandlerNoAutoThread<byte[], byte[]
+                            , E>(noAutoMessageAdapter, blockingQueue);
+                    msHandlerThreads.add(msHandlerThread);
+                    handlerExecutorService.submit(msHandlerThread);
+                }
+                logger.info("Message receiver mq handle thread initialized size:{}.", handleSize);
             }
-            logger.info("Message receiver mq handle thread initialized size:{}.", handleSize);
         }
         
         Properties properties = (Properties) props.clone();
         properties.setProperty(KafkaConstants.CLIENT_ID, getClientId() + "-" + topic);
         
-        if(receiver == null){
+        if(receiverClient == null){
             //获取一个新的接收器
-            receiver = getNewReceiver();
+            receiverClient = getNewReceiverClient();
         }
         
-        return receiveHandle(num,receiver, topic);
+        return receiveHandle(num, receiverClient, topic, extend);
     }
 
     /**
      * 处理
      * @param num
-     * @param receiver
+     * @param receiverClient
      * @param topic
+     * @param extend
      * @return
      */
     @SuppressWarnings("static-access")
-    protected int receiveHandle(int num, IKafkaMsReceiverClient<K, V> receiver, String topic) {
+    protected int receiveHandle(int num, IKafkaMsReceiverClient<byte[], byte[]> receiverClient, String topic, E extend) {
         KafkaTopic kafkaTopic = new KafkaTopic(topic);
         logger.info("Message receiver start. subscribe topic:" + kafkaTopic.getTopic());
 
         int count = 0;
         //订阅主题
-        receiver.subscribe(Arrays.asList(kafkaTopic.getTopic()));
+        receiverClient.subscribe(Arrays.asList(kafkaTopic.getTopic()));
         try {
             //阻塞接收
-            while (running.get() || count == (num - 1)) {
-                ConsumerRecords<K, V> records = receiver.poll(this.msPollTimeout);
+            while (running.get() || count <= (num - 1)) {
+                ConsumerRecords<byte[], byte[]> records = receiverClient.poll(this.msPollTimeout);
                 if(records.isEmpty()){
                     logger.info("Message has empty.topic:" + kafkaTopic.getTopic());
                     return count;
@@ -201,14 +240,18 @@ public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafk
 
                 switch (this.model) {
                     case MODEL_1:
-                        count = doModel1Run(receiver, records, count, num);
+                        count = doModel1Run(receiverClient, records, extend, count, num);
                         break;
                     case MODEL_2:
-                        count = doModel2Run(receiver, records, count, num);
+                        count = doModel2Run(receiverClient, records, extend, count, num);
                         break;
                     default:
                         logger.warn("Receive message [no-auto] no handle.Because property [model] is null.");
                         break;
+                }
+                
+                if(count == num){
+                    break;
                 }
 
                 if(this.msReceiverThreadSleepTime > 0){
@@ -222,7 +265,7 @@ public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafk
             throw e;
         } finally {
             //归还接收器
-            returnReceiver(receiver);
+            returnReceiverClient(receiverClient);
         }
 
         logger.info("Message receiver end. subscribe topic:" + kafkaTopic.getTopic());
@@ -233,15 +276,16 @@ public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafk
      * Model1方式消息接收处理（直接处理）
      * @param receiver
      * @param records
+     * @param extend
      * @param count
      * @param num
      * @return
      */
-    private int doModel1Run(IKafkaMsReceiverClient<K, V> receiver, ConsumerRecords<K, V> records
-            , int count, int num) {
-        for (ConsumerRecord<K, V> record : records) {
+    private int doModel1Run(IKafkaMsReceiverClient<byte[], byte[]> receiver, ConsumerRecords<byte[], byte[]> records
+            , E extend, int count, int num) {
+        for (ConsumerRecord<byte[], byte[]> record : records) {
             try {
-                messageAdapter.adapter(record);
+                noAutoMessageAdapter.adapter(record, extend);
             } catch (MQException e) {
                 logger.error("Receive message [no-auto] failed.topic: " + record.topic()
                         + ",offset: " + record.offset()
@@ -261,16 +305,17 @@ public class KafkaNoAutoReceiverMQ<K, V> extends KafakaMQ<K, V> implements IKafk
      * Model2方式消息接收处理（放入队列）
      * @param receiver
      * @param records
+     * @param extend
      * @param count
      * @param num
      * @return
      */
-    private int doModel2Run(IKafkaMsReceiverClient<K, V> receiver, ConsumerRecords<K, V> records
-            , int count, int num) {
-        for (ConsumerRecord<K, V> record : records) {
+    private int doModel2Run(IKafkaMsReceiverClient<byte[], byte[]> receiver, ConsumerRecords<byte[], byte[]> records
+            , E extend, int count, int num) {
+        for (ConsumerRecord<byte[], byte[]> record : records) {
             try {
                 //阻塞方式入队
-                this.blockingQueue.put(record);
+                this.blockingQueue.put(new NoAutoConsumerRecordQueueItem<byte[], byte[], E>(record, extend));
             } catch (InterruptedException e) {
                 logger.error("Receive message queue put failed.", e);
             } finally {

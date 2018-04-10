@@ -8,7 +8,7 @@ import com.lh.kafka.component.queue.kafka.support.Commit;
  * @version 创建时间：2018年3月29日 上午10:41:28
  * 说明：
  */
-public interface IKafkaReceiverMQ<K, V> extends IKafakaMQ {
+public interface IKafkaReceiverMQ extends IKafakaMQ {
 
     /**
      * 启动接收器

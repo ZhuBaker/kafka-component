@@ -7,7 +7,7 @@ import com.lh.kafka.component.queue.exception.MQException;
  * @version 创建时间：2018年3月30日 下午4:42:34
  * 说明：
  */
-public interface IKafkaNoAutoReceiverMQ<K, V> extends IKafakaMQ {
+public interface IKafkaNoAutoReceiverMQ<E> extends IKafakaMQ {
 
     /**
      * 销毁池
@@ -21,4 +21,13 @@ public interface IKafkaNoAutoReceiverMQ<K, V> extends IKafakaMQ {
      * @throws MQException
      */
     public int receive(int num) throws MQException;
+
+    /**
+     * 手动消费数据
+     * @param num   消费条数
+     * @param extend   扩展对象
+     * @return
+     * @throws MQException
+     */
+    public int receive(int num, E extend) throws MQException;
 }
